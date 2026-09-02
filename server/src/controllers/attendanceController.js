@@ -1,0 +1,207 @@
+// file: api/express-rest-api/src/controllers/attendanceController.js
+const AttendanceModel = require('../models/Attendance'); // PostgreSQL model
+const AttendanceMongo = require('../models/Attendance'); // Mongo model (optional)
+const { v4: uuidv4 } = require('uuid');
+const { sendNotification } = require('./notificationController');
+
+function parseQrData(qrData) {
+  // qrData có thể là JSON string hoặc data URL chứa JSON
+  try {
+    // nếu qrcode client gửi là data URL (rare) -> bỏ phần trước nếu có
+    if (qrData.startsWith('data:')) {
+      // khách hàng thường gửi JSON sau khi scan QR; giữ này để an toàn
+      const base64 = qrData.split(',')[1];
+      const buf = Buffer.from(base64, 'base64');
+      return JSON.parse(buf.toString('utf8'));
+    }
+    // thử parse trực tiếp
+    return JSON.parse(qrData);
+  } catch (e) {
+    // không phải JSON
+    return null;
+  }
+}
+
+exports.generateQRCode = async (req, res) => {
+  const { event_id } = req.query; // nhận event_id từ query param
+  const Event = require('../models/Event');
+
+  if (!event_id) {
+      return res.status(400).json({ message: 'event_id is required' });
+  }
+
+  try {
+      // 1. Kiểm tra sự kiện có tồn tại
+      const event = await Event.findById(event_id);
+      if (!event) {
+          return res.status(404).json({ message: 'Event not found' });
+      }
+
+      // 2. Tạo QR code dựa trên event_id + random salt (để QR code khác nhau cho mỗi lần)
+      const qrData = JSON.stringify({
+          event_id,
+          code: uuidv4()
+      });
+
+      const { generateQRCode } = require('../utils/qrGenerator');
+      const qr_code_url = await generateQRCode(qrData);
+
+      // 3. Không auto lưu participants ở đây (để tránh constraint); participants sẽ được tạo khi user check-in
+      res.json({ qr_code_url, qr_payload: qrData }); // trả thêm qr_payload tiện test
+  } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: 'Error generating QR code', error: err.message });
+  }
+};
+
+exports.checkIn = async (req, res) => {
+  const { event_id, qr_code, qr_data } = req.body;
+  const User = require('../models/User');
+  const Event = require('../models/Event');
+
+  let eventId = event_id;
+  let code = qr_code;
+
+  if (!eventId || !code) {
+    if (qr_data) {
+      const parsed = parseQrData(qr_data);
+      if (!parsed || !parsed.event_id || !parsed.code) {
+        return res.status(400).json({ message: 'qr_data invalid. expected JSON with event_id and code' });
+      }
+      eventId = parsed.event_id;
+      code = parsed.code;
+    }
+  }
+
+  if (!eventId || !code) {
+    return res.status(400).json({ message: 'event_id and qr_code (or qr_data) required' });
+  }
+
+  try {
+    // 1) kiểm tra event tồn tại
+    const event = await Event.findById(eventId);
+    if (!event) return res.status(404).json({ message: 'Event not found' });
+
+    // 2) Cố gắng update participant (nếu đã tồn tại)
+    const participant = await AttendanceModel.updateCheckIn(eventId, code);
+
+    if (participant) {
+      // Chỉ tăng events_attended nếu participant chưa check-in trước đó
+      await User.incrementEventsAttended(req.user.id);
+
+      // Gửi thông báo cho người tham gia (người được điểm danh)
+      try {
+        await sendNotification(
+          participant.user_id,
+          'Điểm danh thành công',
+          `Bạn đã điểm danh thành công cho sự kiện "${event.title}"`,
+          'checkin_success',
+          eventId
+        );
+      } catch (notifErr) {
+        console.warn('Failed to send check-in notification:', notifErr.message);
+      }
+
+      // Ghi Mongo Attendance (option)
+      try {
+        await AttendanceMongo.create({ userId: req.user.id, eventId, timestamp: new Date() });
+      } catch (e) {
+        console.warn('Mongo attendance create failed:', e.message);
+      }
+
+      return res.json({ message: 'Check-in successful', participant });
+    }
+
+    // 3) Không tự tạo participant mới; báo lỗi không tìm thấy QR cho sự kiện này
+    return res.status(404).json({ message: 'QR code not found for this event' });
+  } catch (err) {
+    console.error(err);
+    if (err.code === '23505') {
+      return res.status(409).json({ message: 'Participant already exists or qr_code conflict', error: err.detail });
+    }
+    res.status(500).json({ message: 'Check-in failed', error: err.message });
+  }
+};
+
+
+// GET: current user's participation records
+exports.getMyParticipations = async (req, res) => {
+  try {
+    const records = await AttendanceModel.findByUser(req.user.id);
+    res.json(records);
+  } catch (err) {
+    console.error('Error fetching participations:', err);
+    res.status(500).json({ message: 'Error fetching participations', error: err.message });
+  }
+};
+
+// POST: join event to generate personal QR (not checked-in yet)
+exports.joinEvent = async (req, res) => {
+  const { event_id } = req.body;
+  if (!event_id) {
+    return res.status(400).json({ message: 'event_id is required' });
+  }
+  try {
+    const Event = require('../models/Event');
+    const event = await Event.findById(event_id);
+    if (!event) return res.status(404).json({ message: 'Event not found' });
+
+    // Only allow join before event ends
+    const now = new Date();
+    const end = new Date(event.end_time || event.endTime);
+    if (Number.isFinite(end.getTime()) && now > end) {
+      return res.status(400).json({ message: 'Event has ended; joining is closed' });
+    }
+
+    // If already joined, return existing participant
+    const pool = require('../config/database').getPostgresPool();
+    const existing = await pool.query('SELECT * FROM participants WHERE user_id = $1 AND event_id = $2', [req.user.id, event_id]);
+    if (existing.rows[0]) {
+      return res.json(existing.rows[0]);
+    }
+
+    // Check if event has reached max participants
+    if (event.max_participants) {
+      const countResult = await pool.query('SELECT COUNT(*) as count FROM participants WHERE event_id = $1', [event_id]);
+      const currentCount = parseInt(countResult.rows[0].count);
+      
+      if (currentCount >= event.max_participants) {
+        return res.status(400).json({ 
+          message: 'Sự kiện đã đạt số lượng người tham gia tối đa',
+          code: 'EVENT_FULL'
+        });
+      }
+    }
+
+    const participantId = uuidv4();
+    const qrCode = uuidv4();
+    const created = await AttendanceModel.createPending({
+      id: participantId,
+      user_id: req.user.id,
+      event_id,
+      qr_code: qrCode
+    });
+    return res.status(201).json(created);
+  } catch (err) {
+    console.error('Join event failed:', err);
+    res.status(500).json({ message: 'Join event failed', error: err.message });
+  }
+};
+
+// GET: participants by event (organizer/admin/mod only)
+exports.getParticipantsByEvent = async (req, res) => {
+  const { event_id } = req.query;
+  if (!event_id) return res.status(400).json({ message: 'event_id is required' });
+  try {
+    const Event = require('../models/Event');
+    const canView = await Event.canEdit(event_id, req.user.id, req.user.role);
+    if (!canView) return res.status(403).json({ message: 'Not authorized to view participants of this event' });
+
+    const rows = await AttendanceModel.findByEvent(event_id);
+    return res.json(rows);
+  } catch (err) {
+    console.error('Fetch participants failed:', err);
+    res.status(500).json({ message: 'Error fetching participants', error: err.message });
+  }
+};
+

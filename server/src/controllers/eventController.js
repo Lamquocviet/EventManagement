@@ -1,0 +1,366 @@
+// file: api/express-rest-api/src/controllers/eventController.js
+const Event = require('../models/Event');
+const Category = require('../models/Category');
+const { v4: uuidv4 } = require('uuid');
+const { sendNotification } = require('./notificationController');
+const { buildImageUrl } = require('../middleware/uploadMiddleware');
+
+// CREATE: logic duyệt dựa trên role và is_public
+exports.createEvent = async (req, res) => {
+  try {
+    const { title, description, start_time, end_time, location, is_public, max_participants, category_id } = req.body;
+
+    // Kiểm tra giới hạn tạo event cho user thường (1 event/ngày)
+    if (req.user.role === 'user') {
+      const hasCreatedToday = await Event.hasCreatedEventToday(req.user.id);
+      if (hasCreatedToday) {
+        return res.status(403).json({ 
+          message: 'Bạn chỉ được phép tạo 1 sự kiện mỗi ngày. Vui lòng thử lại vào ngày mai.',
+          code: 'DAILY_LIMIT_REACHED'
+        });
+      }
+    }
+
+    // Nếu có upload hình
+    let image_url = null;
+    if (req.file) {
+      const { normalizeImagePath } = require('../middleware/uploadMiddleware');
+      // Lưu path tương đối vào database (vd: /uploads/123.jpg)
+      image_url = normalizeImagePath(req.file.path);
+    }
+
+    const id = uuidv4();
+    
+    // Xác định status dựa trên role và is_public
+    let status = 'pending';
+    // Admin hoặc Moderator tạo -> không cần duyệt
+    if (req.user.role === 'admin' || req.user.role === 'moderator') {
+      status = 'approved';
+    } 
+    // User thường tạo sự kiện riêng tư (is_public = false) -> không cần duyệt
+    else if (is_public === 'false' || is_public === false) {
+      status = 'approved';
+    }
+    // User thường tạo sự kiện công khai -> cần duyệt (status = 'pending')
+
+    const eventData = {
+      id, title, description, start_time, end_time, location, image_url,
+      is_public, max_participants, created_by: req.user.id, category_id, status
+    };
+
+    await Event.create(eventData);
+
+    // Nếu có ảnh upload -> chèn vào event_images
+    if (image_url) {
+      const imageId = uuidv4();
+      await Event.addImage(imageId, id, image_url);
+    }
+
+    // Trả về thông báo khác nhau dựa trên status
+    if (status === 'approved') {
+      res.status(201).json({ 
+        message: 'Event created successfully', 
+        eventId: id, 
+        status: 'approved',
+        data: eventData 
+      });
+    } else {
+      res.status(201).json({ 
+        message: 'Event created and pending approval', 
+        eventId: id, 
+        status: 'pending' 
+      });
+    }
+  } catch (err) {
+    res.status(500).json({ message: 'Error creating event', error: err.message });
+  }
+};
+
+// READ: chỉ lấy các event được duyệt hoặc của chính mình
+exports.getEvents = async (req, res) => {
+  try {
+    const events = await Event.findAll(req.user.id, req.user.role);
+    // Build URL đầy đủ cho image_url
+    const eventsWithImages = events.map(event => ({
+      ...event,
+      image_url: event.image_url ? buildImageUrl(event.image_url) : null
+    }));
+    res.json(eventsWithImages);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching events', error: err.message });
+  }
+};
+
+// DETAIL
+exports.getEventDetail = async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) return res.status(404).json({ message: 'Event not found' });
+
+    // Build URL đầy đủ cho image_url
+    if (event.image_url) {
+      event.image_url = buildImageUrl(event.image_url);
+    }
+
+    // Admin/Mod có thể xem tất cả events
+    // Enrich with participants for UI persistence
+    try {
+      const Attendance = require('../models/Attendance');
+      const rows = await Attendance.findByEvent(req.params.id);
+      event.participants = rows.map(r => ({
+        userId: r.user_id,
+        joinedAt: r.joined_at,
+        qrCode: r.qr_code,
+        checkedIn: r.checked_in,
+        checkInTime: r.check_in_time
+      }));
+    } catch (e) {
+      // best-effort enrichment
+      event.participants = [];
+    }
+
+    if (req.user.role === 'admin' || req.user.role === 'moderator') {
+      res.json(event);
+      return;
+    }
+
+    // User thường chỉ xem:
+    // 1. Sự kiện do chính mình tạo
+    // 2. Sự kiện công khai đã được duyệt (status = 'approved' AND is_public = true)
+    const isOwner = event.created_by === req.user.id;
+    const isPublicAndApproved = event.status === 'approved' && event.is_public === true;
+    
+    if (!isOwner && !isPublicAndApproved) {
+      return res.status(403).json({ message: 'Not allowed to view this event' });
+    }
+
+    res.json(event);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching event', error: err.message });
+  }
+};
+
+// PUBLIC DETAIL: allow access via link even if private or not owner
+exports.getEventPublic = async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) return res.status(404).json({ message: 'Event not found' });
+
+    // Build URL đầy đủ cho image_url
+    if (event.image_url) {
+      event.image_url = buildImageUrl(event.image_url);
+    }
+
+    // Enrich participants best-effort for UI
+    try {
+      const Attendance = require('../models/Attendance');
+      const rows = await Attendance.findByEvent(req.params.id);
+      event.participants = rows.map(r => ({
+        userId: r.user_id,
+        joinedAt: r.joined_at,
+        qrCode: r.qr_code,
+        checkedIn: r.checked_in,
+        checkInTime: r.check_in_time
+      }));
+    } catch {
+      event.participants = [];
+    }
+
+    // Hide sensitive fields if any in future
+    return res.json(event);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching event', error: err.message });
+  }
+};
+
+// SHARE: returns a public link that can be shared
+exports.shareEventLink = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const event = await Event.findById(id);
+    if (!event) return res.status(404).json({ message: 'Event not found' });
+
+    const canView = await Event.canEdit(id, req.user.id, req.user.role) || event.created_by === req.user.id;
+    if (!canView && !(req.user.role === 'admin' || req.user.role === 'moderator')) {
+      return res.status(403).json({ message: 'Not authorized to share this event' });
+    }
+
+    // For simplicity, direct public link by id
+    const origin = (process.env.PUBLIC_APP_URL || '').replace(/\/$/, '') || 'http://localhost:5173';
+    const link = `${origin}/event/${id}?public=1`;
+    return res.json({ link });
+  } catch (err) {
+    res.status(500).json({ message: 'Error generating share link', error: err.message });
+  }
+};
+// APPROVE
+exports.approveEvent = async (req, res) => {
+  if (req.user.role !== 'moderator' && req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Only moderator or admin can approve events' });
+  }
+
+  try {
+    const event = await Event.approve(req.params.id);
+    if (!event) return res.status(404).json({ message: 'Event not found' });
+
+    // 🔔 Gửi thông báo cho user tạo event
+    await sendNotification(
+      event.created_by,
+      'Sự kiện đã được duyệt',
+      `Sự kiện "${event.title}" của bạn đã được phê duyệt.`,
+      'event_approved',
+      event.id
+    );
+
+    res.json({ message: 'Event approved', event });
+  } catch (err) {
+    res.status(500).json({ message: 'Error approving event', error: err.message });
+  }
+};
+
+// REJECT
+exports.rejectEvent = async (req, res) => {
+  if (req.user.role !== 'moderator' && req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Only moderator or admin can reject events' });
+  }
+
+  const { reason } = req.body;
+  try {
+    const event = await Event.reject(req.params.id, reason);
+    if (!event) return res.status(404).json({ message: 'Event not found' });
+
+    // 🔔 Gửi thông báo cho user tạo event
+    await sendNotification(
+      event.created_by,
+      'Sự kiện bị từ chối',
+      `Sự kiện "${event.title}" của bạn đã bị từ chối. Lý do: ${reason || 'Không xác định'}.`,
+      'event_rejected',
+      event.id
+    );
+
+    res.json({ message: 'Event rejected', event });
+  } catch (err) {
+    res.status(500).json({ message: 'Error rejecting event', error: err.message });
+  }
+};
+
+// CANCEL
+exports.cancelEvent = async (req, res) => {
+  const { reason } = req.body;
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) return res.status(404).json({ message: 'Event not found' });
+
+    const canCancel = await Event.canCancel(req.params.id, req.user.id, req.user.role);
+    if (!canCancel) {
+      return res.status(403).json({ message: 'Not authorized to cancel this event' });
+    }
+
+    const cancelledEvent = await Event.cancel(req.params.id, reason);
+
+    // 🔔 Gửi thông báo cho tất cả người tham gia
+    try {
+      const Attendance = require('../models/Attendance');
+      const participants = await Attendance.findByEvent(req.params.id);
+      
+      for (const participant of participants) {
+        await sendNotification(
+          participant.user_id,
+          'Sự kiện đã bị hủy',
+          `Sự kiện "${event.title}" đã bị hủy. Lý do: ${reason || 'Không xác định'}.`,
+          'event_cancelled',
+          event.id
+        );
+      }
+    } catch (notificationErr) {
+      console.warn('Failed to send cancellation notifications:', notificationErr);
+    }
+
+    res.json({ message: 'Event cancelled', event: cancelledEvent });
+  } catch (err) {
+    res.status(500).json({ message: 'Error cancelling event', error: err.message });
+  }
+};
+
+// UPDATE - improved
+exports.updateEvent = async (req, res) => {
+  const allowedFields = ['title','description','start_time','end_time','location','image_url','is_public','max_participants','category_id'];
+  const payload = req.body;
+
+  try {
+    // Nếu có upload hình
+    if (req.file) {
+      const { normalizeImagePath } = require('../middleware/uploadMiddleware');
+      // Lưu path tương đối vào database (vd: /uploads/123.jpg)
+      const imagePath = normalizeImagePath(req.file.path);
+      payload.image_url = imagePath;
+
+      // Chèn vào event_images
+      const imageId = uuidv4();
+      await Event.addImage(imageId, req.params.id, imagePath);
+    }
+
+    const event = await Event.findById(req.params.id);
+    if (!event) return res.status(404).json({ message: 'Event not found' });
+
+    const canEdit = await Event.canEdit(req.params.id, req.user.id, req.user.role);
+    if (!canEdit) return res.status(403).json({ message: 'Not authorized to edit this event' });
+
+    // Build updates object
+    const updates = {};
+    for (const field of allowedFields) {
+      if (Object.prototype.hasOwnProperty.call(payload, field) && payload[field] !== undefined) {
+        updates[field] = payload[field];
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ message: 'No valid fields to update' });
+    }
+
+    const updatedEvent = await Event.update(req.params.id, updates);
+
+    res.json({ message: 'Event updated and pending re-approval', event: updatedEvent });
+  } catch (err) {
+    res.status(500).json({ message: 'Error updating event', error: err.message });
+  }
+};
+
+// DELETE
+exports.deleteEvent = async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) return res.status(404).json({ message: 'Event not found' });
+
+    const isOwner = event.created_by === req.user.id;
+    const canDelete = await Event.canDelete(req.params.id, req.user.id, req.user.role);
+
+    if (!canDelete) return res.status(403).json({ message: 'Not authorized to delete this event' });
+
+    await Event.delete(req.params.id);
+
+    // 🔔 Thông báo nếu moderator/admin xóa sự kiện của người khác
+    if (!isOwner) {
+      await sendNotification(
+        event.created_by,
+        'Sự kiện bị xóa',
+        `Sự kiện "${event.title}" của bạn đã bị xóa bởi quản trị viên.`,
+        'event_deleted',
+        req.params.id
+      );
+    }
+
+    res.json({ message: 'Event deleted' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error deleting event', error: err.message });
+  }
+};
+
+exports.getCategories = async (req, res) => {
+  try {
+    const categories = await Category.findAll();
+    res.json(categories);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching categories', error: err.message });
+  }
+};
