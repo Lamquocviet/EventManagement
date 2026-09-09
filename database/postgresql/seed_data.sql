@@ -12,6 +12,4 @@ INSERT INTO categories (name, description, color, icon) VALUES
 
 -- Insert Users (password hash for 'Fit@public@2025')
 INSERT INTO users (email, password_hash, name, role, phone) VALUES
-('tynnp.dhsp@gmail.com', '$2b$10$rprcbsQSwIDUt4ryChquu.4.YzzN4E3cri/tv0yW6XuKz2ta3VviC', 'Nguyễn Ngọc Phú Tỷ', 'admin', '0364147912'),
-('uyenv.ngn@gmail.com', '$2b$10$rprcbsQSwIDUt4ryChquu.4.YzzN4E3cri/tv0yW6XuKz2ta3VviC', 'Nguyễn Uyên Vy', 'admin', '0838218767'),
-('kiettuanvocao2005@gmail.com', '$2b$10$rprcbsQSwIDUt4ryChquu.4.YzzN4E3cri/tv0yW6XuKz2ta3VviC', 'Cao Võ Tuấn Kiệt', 'admin', '0359975958');
+('lamviet.dhsp@gmail.com', '$2b$10$rprcbsQSwIDUt4ryChquu.4.YzzN4E3cri/tv0yW6XuKz2ta3VviC', 'Lam Viet', 'admin', '0999999999'),
