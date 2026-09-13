@@ -3,7 +3,17 @@ import { createPortal } from "react-dom";
 import { useApp } from "../../context/AppContext";
 import { User } from "../../types/index";
 import { toast } from "react-hot-toast";
-import { Trash, Lock, Unlock, Search, ChevronLeft, ChevronRight, Upload, Download, X } from "lucide-react";
+import {
+  Trash,
+  Lock,
+  Unlock,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Upload,
+  Download,
+  X,
+} from "lucide-react";
 import axios from "axios";
 import * as XLSX from "xlsx";
 
@@ -94,14 +104,14 @@ export function UserManagement() {
 
   const handleRoleChange = async (
     id: string,
-    newRole: "admin" | "moderator" | "user"
+    newRole: "admin" | "moderator" | "user",
   ) => {
     try {
       const token = localStorage.getItem("authToken");
       const response = await axios.put(
         `${API_URL}/api/users/${id}/role`,
         { newRole },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       dispatch({
         type: "UPDATE_USER_ROLE",
@@ -118,7 +128,7 @@ export function UserManagement() {
       const response = await axios.put(
         `${API_URL}/api/users/${id}/lock`,
         { lock: isLocked },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       const updatedUser = response.data.user;
       dispatch({
@@ -126,7 +136,9 @@ export function UserManagement() {
         payload: { id: updatedUser.id, is_locked: updatedUser.is_locked },
       });
       toast.success(
-        updatedUser.is_locked ? "Người dùng đã bị khóa!" : "Người dùng đã được mở khóa!"
+        updatedUser.is_locked
+          ? "Người dùng đã bị khóa!"
+          : "Người dùng đã được mở khóa!",
       );
     } catch (error) {
       toast.error("Thao tác thất bại!");
@@ -139,10 +151,14 @@ export function UserManagement() {
       const file = e.target.files[0];
       // Validate file type
       const validTypes = [
-        'application/vnd.ms-excel',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       ];
-      if (!validTypes.includes(file.type) && !file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+      if (
+        !validTypes.includes(file.type) &&
+        !file.name.endsWith(".xlsx") &&
+        !file.name.endsWith(".xls")
+      ) {
         toast.error("Vui lòng chọn file Excel (.xlsx hoặc .xls)");
         return;
       }
@@ -159,20 +175,26 @@ export function UserManagement() {
 
     setIsUploading(true);
     const formData = new FormData();
-    formData.append('file', selectedFile);
+    formData.append("file", selectedFile);
 
     try {
       const token = localStorage.getItem("authToken");
-      const response = await axios.post(`${API_URL}/api/users/bulk-upload`, formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+      const response = await axios.post(
+        `${API_URL}/api/users/bulk-upload`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+        },
+      );
 
       setUploadResult(response.data);
       await fetchUsers(); // Refresh danh sách users
-      toast.success(`Thành công: ${response.data.successCount}/${response.data.total} tài khoản`);
+      toast.success(
+        `Thành công: ${response.data.successCount}/${response.data.total} tài khoản`,
+      );
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Upload thất bại!");
     } finally {
@@ -189,28 +211,28 @@ export function UserManagement() {
   const downloadTemplate = () => {
     // Tạo template Excel
     const template = [
-      ['email', 'name', 'password', 'role', 'phone'],
-      ['user1@example.com', 'Nguyen Van A', 'password123', 'user', '0901234567'],
-      ['user2@example.com', 'Tran Thi B', 'password123', 'moderator', '0912345678']
+      ["email", "name", "password", "role", "phone"],
+      ["user1@example.com", "Nguyen Van A", "password123", "user", "0901234567"],
+      ["user2@example.com", "Tran Thi B", "password123", "moderator", "0912345678"],
     ];
-    
+
     // Tạo workbook và worksheet
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(template);
-    
+
     // Set column widths cho dễ nhìn
-    ws['!cols'] = [
+    ws["!cols"] = [
       { wch: 25 }, // email
       { wch: 20 }, // name
       { wch: 15 }, // password
       { wch: 12 }, // role
-      { wch: 15 }  // phone
+      { wch: 15 }, // phone
     ];
-    
-    XLSX.utils.book_append_sheet(wb, ws, 'Users');
-    
+
+    XLSX.utils.book_append_sheet(wb, ws, "Users");
+
     // Download file
-    XLSX.writeFile(wb, 'user_template.xlsx');
+    XLSX.writeFile(wb, "user_template.xlsx");
   };
 
   // Modal JSX (sẽ dùng portal)
@@ -221,7 +243,8 @@ export function UserManagement() {
           Xác nhận xóa người dùng
         </h3>
         <p className="text-gray-700 dark:text-dark-text-secondary mb-6">
-          Bạn có chắc chắn muốn xóa người dùng <strong>{selectedUser.name}</strong> không?
+          Bạn có chắc chắn muốn xóa người dùng <strong>{selectedUser.name}</strong>{" "}
+          không?
         </p>
         <div className="flex justify-end gap-2">
           <button
@@ -286,7 +309,8 @@ export function UserManagement() {
 
         {/* Stats */}
         <div className="mb-4 text-sm text-gray-600 dark:text-dark-text-secondary italic">
-          Hiển thị {startIndex + 1}-{Math.min(endIndex, filteredUsers.length)} trong tổng số{" "}
+          Hiển thị {startIndex + 1}-{Math.min(endIndex, filteredUsers.length)} trong
+          tổng số{" "}
           <span className="font-semibold text-indigo-600 dark:text-indigo-400">
             {filteredUsers.length}
           </span>{" "}
@@ -324,7 +348,9 @@ export function UserManagement() {
                   <td className="px-4 py-3">
                     <select
                       value={user.role}
-                      onChange={(e) => handleRoleChange(user.id, e.target.value as any)}
+                      onChange={(e) =>
+                        handleRoleChange(user.id, e.target.value as any)
+                      }
                       className="rounded-md px-2 py-1 text-sm border border-gray-300 dark:border-dark-border focus:ring-2 focus:ring-indigo-500 transition duration-200 bg-white dark:bg-dark-bg-secondary"
                     >
                       <option value="admin">Quản trị viên</option>
@@ -360,7 +386,11 @@ export function UserManagement() {
                       }`}
                       title={user.is_locked ? "Mở khóa" : "Khóa"}
                     >
-                      {user.is_locked ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                      {user.is_locked ? (
+                        <Unlock className="h-4 w-4" />
+                      ) : (
+                        <Lock className="h-4 w-4" />
+                      )}
                     </button>
                   </td>
                 </tr>
@@ -403,16 +433,24 @@ export function UserManagement() {
                     }`}
                     title={user.is_locked ? "Mở khóa" : "Khóa"}
                   >
-                    {user.is_locked ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                    {user.is_locked ? (
+                      <Unlock className="h-4 w-4" />
+                    ) : (
+                      <Lock className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-dark-text-tertiary">Vai trò:</span>
+                  <span className="text-sm text-gray-600 dark:text-dark-text-tertiary">
+                    Vai trò:
+                  </span>
                   <select
                     value={user.role}
-                    onChange={(e) => handleRoleChange(user.id, e.target.value as any)}
+                    onChange={(e) =>
+                      handleRoleChange(user.id, e.target.value as any)
+                    }
                     className="rounded-md px-2 py-1 text-sm border border-gray-300 dark:border-dark-border focus:ring-2 focus:ring-indigo-500 transition duration-200 bg-white dark:bg-dark-bg-tertiary"
                   >
                     <option value="admin">Quản trị viên</option>
@@ -421,7 +459,9 @@ export function UserManagement() {
                   </select>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-dark-text-tertiary">Trạng thái:</span>
+                  <span className="text-sm text-gray-600 dark:text-dark-text-tertiary">
+                    Trạng thái:
+                  </span>
                   {user.is_locked ? (
                     <span className="text-sm text-red-600 dark:text-red-400 font-semibold">
                       Đã khóa
@@ -441,7 +481,8 @@ export function UserManagement() {
         {totalPages > 1 && (
           <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="text-sm text-gray-700 dark:text-dark-text-secondary">
-              Trang <span className="font-semibold">{currentPage}</span> / {totalPages}
+              Trang <span className="font-semibold">{currentPage}</span> /{" "}
+              {totalPages}
             </div>
             <div className="flex items-center space-x-2 flex-wrap justify-center">
               <button
@@ -457,7 +498,8 @@ export function UserManagement() {
                   let pageNum;
                   if (totalPages <= 5) pageNum = i + 1;
                   else if (currentPage <= 3) pageNum = i + 1;
-                  else if (currentPage > totalPages - 3) pageNum = totalPages - 4 + i;
+                  else if (currentPage > totalPages - 3)
+                    pageNum = totalPages - 4 + i;
                   else pageNum = currentPage - 2 + i;
                   return (
                     <button
@@ -475,7 +517,9 @@ export function UserManagement() {
                 })}
               </div>
               <button
-                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                }
                 disabled={currentPage === totalPages}
                 className="flex items-center px-3 py-2 text-sm font-medium text-gray-500 dark:text-dark-text-tertiary bg-white dark:bg-dark-bg-tertiary border border-gray-300 dark:border-dark-border rounded-lg hover:bg-indigo-50 dark:hover:bg-gray-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105"
               >
@@ -512,8 +556,30 @@ export function UserManagement() {
                   Hướng dẫn:
                 </h4>
                 <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1 list-disc list-inside">
-                  <li>File Excel phải có các cột: <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">email</code>, <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">name</code>, <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">password</code></li>
-                  <li>Các cột tùy chọn: <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">role</code> (user/moderator/admin), <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">phone</code></li>
+                  <li>
+                    File Excel phải có các cột:{" "}
+                    <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">
+                      email
+                    </code>
+                    ,{" "}
+                    <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">
+                      name
+                    </code>
+                    ,{" "}
+                    <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">
+                      password
+                    </code>
+                  </li>
+                  <li>
+                    Các cột tùy chọn:{" "}
+                    <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">
+                      role
+                    </code>{" "}
+                    (user/moderator/admin),{" "}
+                    <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">
+                      phone
+                    </code>
+                  </li>
                   <li>Mật khẩu phải có tối thiểu 8 ký tự</li>
                   <li>Email phải là duy nhất và hợp lệ</li>
                 </ul>
@@ -554,16 +620,28 @@ export function UserManagement() {
                   </h4>
                   <div className="grid grid-cols-3 gap-4 mb-3">
                     <div className="text-center">
-                      <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{uploadResult.total}</p>
-                      <p className="text-xs text-gray-600 dark:text-dark-text-tertiary">Tổng số</p>
+                      <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                        {uploadResult.total}
+                      </p>
+                      <p className="text-xs text-gray-600 dark:text-dark-text-tertiary">
+                        Tổng số
+                      </p>
                     </div>
                     <div className="text-center">
-                      <p className="text-2xl font-bold text-green-600 dark:text-green-400">{uploadResult.successCount}</p>
-                      <p className="text-xs text-gray-600 dark:text-dark-text-tertiary">Thành công</p>
+                      <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                        {uploadResult.successCount}
+                      </p>
+                      <p className="text-xs text-gray-600 dark:text-dark-text-tertiary">
+                        Thành công
+                      </p>
                     </div>
                     <div className="text-center">
-                      <p className="text-2xl font-bold text-red-600 dark:text-red-400">{uploadResult.failedCount}</p>
-                      <p className="text-xs text-gray-600 dark:text-dark-text-tertiary">Thất bại</p>
+                      <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+                        {uploadResult.failedCount}
+                      </p>
+                      <p className="text-xs text-gray-600 dark:text-dark-text-tertiary">
+                        Thất bại
+                      </p>
                     </div>
                   </div>
 
@@ -574,14 +652,17 @@ export function UserManagement() {
                         Các dòng lỗi:
                       </h5>
                       <div className="max-h-40 overflow-y-auto">
-                        {uploadResult.results.failed.map((item: any, idx: number) => (
-                          <div
-                            key={idx}
-                            className="text-sm p-2 mb-1 bg-red-50 dark:bg-red-900/20 rounded border-l-4 border-red-500"
-                          >
-                            <span className="font-semibold">Dòng {item.row}</span> ({item.email}): {item.error}
-                          </div>
-                        ))}
+                        {uploadResult.results.failed.map(
+                          (item: any, idx: number) => (
+                            <div
+                              key={idx}
+                              className="text-sm p-2 mb-1 bg-red-50 dark:bg-red-900/20 rounded border-l-4 border-red-500"
+                            >
+                              <span className="font-semibold">Dòng {item.row}</span>{" "}
+                              ({item.email}): {item.error}
+                            </div>
+                          ),
+                        )}
                       </div>
                     </div>
                   )}
@@ -618,7 +699,7 @@ export function UserManagement() {
             </div>
           </div>
         ),
-        document.body
+        document.body,
       )}
     </>
   );

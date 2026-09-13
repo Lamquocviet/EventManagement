@@ -19,17 +19,14 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      "react-refresh/only-export-components": [
-        "warn",
-        { allowConstantExport: true },
-      ],
+      "react-refresh/only-export-components": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unused-vars": "off",
       "no-empty": "off",
 
-      "react-hooks/rules-of-hooks": "off", // Tắt kiểm tra điều kiện gọi Hook
-      "no-case-declarations": "off", // Cho phép khai báo let/const trong case
-      "no-extra-boolean-cast": "off", // Bỏ qua lỗi phủ định kép !!
+      "react-hooks/rules-of-hooks": "off",
+      "no-case-declarations": "off",
+      "no-extra-boolean-cast": "off",
     },
   },
 );

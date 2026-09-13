@@ -83,7 +83,7 @@ export function CheckInPanel() {
       }
     };
     fetchEvents();
-  }, [currentUser]);
+  }, [BASE, currentUser]);
 
   // Fetch users for participant display
   useEffect(() => {
@@ -96,7 +96,7 @@ export function CheckInPanel() {
       } catch {}
     };
     fetchUsers();
-  }, []);
+  }, [BASE]);
 
   const dataEvents = remoteEvents ?? events;
   const myCreatedEvents = useMemo(
@@ -127,7 +127,7 @@ export function CheckInPanel() {
       } catch (err) {}
     };
     loadParticipants();
-  }, [selectedEvent]);
+  }, [BASE, selectedEvent]);
 
   useEffect(() => {
     return () => {

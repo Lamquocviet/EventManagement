@@ -57,7 +57,7 @@ export function Header({ onMenuToggle }: HeaderProps) {
     fetchNotifications();
     const id = window.setInterval(fetchNotifications, 30000);
     return () => window.clearInterval(id);
-  }, [currentUser?.id, fetchNotifications]);
+  }, [currentUser, fetchNotifications]);
 
   const handleToggleNotif = async () => {
     setOpenNotif((v) => !v);

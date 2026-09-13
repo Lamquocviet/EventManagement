@@ -136,7 +136,7 @@ export function EventList() {
     };
 
     fetchEvents();
-  }, [isMyEvents, currentUser?.id]);
+  }, [BASE, currentUser, isMyEvents]);
 
   // Lọc theo thời gian và danh mục
   useEffect(() => {
