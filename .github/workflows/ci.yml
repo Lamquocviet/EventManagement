@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "README.md"
+      - "QUICK_START.md"
+      - "LICENSE.txt"
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate:
+    name: Validate project
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            server/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ./client
+        run: npm ci
+
+      - name: Lint frontend
+        working-directory: ./client
+        run: npm run lint -- --max-warnings=0
+
+      - name: Build frontend
+        working-directory: ./client
+        run: npm run build
+
+      - name: Install backend dependencies
+        working-directory: ./server
+        run: npm ci --omit=dev
+
+      - name: Validate backend syntax
+        working-directory: ./server
+        run: node --check src/app.js
