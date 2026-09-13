@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useApp } from "../../context/AppContext";
 import { User } from "../../types/index";
@@ -30,7 +30,7 @@ export function UserManagement() {
   const [uploadResult, setUploadResult] = useState<any>(null);
 
   // Fetch users from API (extracted to function để gọi lại sau delete)
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const token = localStorage.getItem("authToken");
       const response = await axios.get(`${API_URL}/api/users`, {
@@ -38,11 +38,11 @@ export function UserManagement() {
       });
       dispatch({ type: "SET_USERS", payload: response.data });
     } catch (error) {}
-  };
+  }, [dispatch]);
 
   useEffect(() => {
     fetchUsers();
-  }, [dispatch]);
+  }, [fetchUsers]);
 
   // Filter users based on search and role
   const filteredUsers = users.filter((user) => {

@@ -99,7 +99,7 @@ export function Dashboard() {
     };
 
     fetchData();
-  }, []);
+  }, [BASE, currentUser?.role]);
 
   const safeEvents = events ?? [];
 

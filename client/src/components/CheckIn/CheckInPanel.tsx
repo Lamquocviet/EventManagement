@@ -19,14 +19,15 @@ export function CheckInPanel() {
   const qrScannerRef = useRef<Html5Qrcode | null>(null);
   const scannerDivId = "qr-reader";
 
-  const RAW_BASE = (import.meta.env.VITE_API_URL as string) || "http://localhost:5000";
+  const RAW_BASE =
+    (import.meta.env.VITE_API_URL as string) || "http://localhost:5000";
   const BASE = RAW_BASE.replace(/\/$/, "") + "/api";
 
   const getAvatarUrl = (url?: string) => {
     if (!url) return "/default-avatar.png";
     if (url.startsWith("http")) return url;
     // Remove leading slashes and add exactly one between base and path
-    const cleanPath = url.replace(/^\/+/, '');
+    const cleanPath = url.replace(/^\/+/, "");
     return `${RAW_BASE}/${cleanPath}`;
   };
 
@@ -100,7 +101,7 @@ export function CheckInPanel() {
   const dataEvents = remoteEvents ?? events;
   const myCreatedEvents = useMemo(
     () => dataEvents.filter((e: any) => e.createdBy === currentUser?.id),
-    [dataEvents, currentUser?.id]
+    [dataEvents, currentUser?.id],
   );
   const selectedEventData = dataEvents.find((e: any) => e.id === selectedEvent);
 
@@ -123,8 +124,7 @@ export function CheckInPanel() {
           checkInTime: r.check_in_time ?? r.checkInTime ?? undefined,
         }));
         setSelectedParticipants(normalized);
-      } catch (err) {
-      }
+      } catch (err) {}
     };
     loadParticipants();
   }, [selectedEvent]);
@@ -140,7 +140,7 @@ export function CheckInPanel() {
       setScanResult("Vui lòng chọn sự kiện trước");
       return;
     }
-    
+
     setError(null);
     setScanResult("");
 
@@ -151,14 +151,13 @@ export function CheckInPanel() {
           await qrScannerRef.current.stop();
         }
         await qrScannerRef.current.clear();
-      } catch (e) {
-      }
+      } catch (e) {}
       qrScannerRef.current = null;
     }
 
     setIsScanning(true);
 
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     try {
       const scannerElement = document.getElementById(scannerDivId);
@@ -179,7 +178,9 @@ export function CheckInPanel() {
         setQrInput(decodedText);
         await stopScanner();
         setTimeout(async () => {
-          const event = (remoteEvents ?? events).find((e: any) => e.id === selectedEvent);
+          const event = (remoteEvents ?? events).find(
+            (e: any) => e.id === selectedEvent,
+          );
           if (!event) {
             setScanResult("Không tìm thấy sự kiện");
             return;
@@ -201,24 +202,43 @@ export function CheckInPanel() {
             const raw = decodedText.trim();
             const isJsonOrData = raw.startsWith("{") || raw.startsWith("data:");
             const payload: any = { event_id: selectedEvent };
-            if (isJsonOrData) payload.qr_data = raw; else payload.qr_code = raw;
-            const res = await axios.post(`${BASE}/attendance/checkin`, payload, { headers });
+            if (isJsonOrData) payload.qr_data = raw;
+            else payload.qr_code = raw;
+            const res = await axios.post(`${BASE}/attendance/checkin`, payload, {
+              headers,
+            });
             const participant = res.data?.participant ?? res.data;
             const checkedUserId = participant.user_id ?? participant.userId;
             if (checkedUserId) {
-              dispatch({ type: "CHECK_IN", payload: { eventId: selectedEvent, userId: checkedUserId } });
-              setSelectedParticipants(prev => prev.map((p: any) => p.userId === checkedUserId ? { ...p, checkedIn: true, checkInTime: new Date().toISOString() } : p));
+              dispatch({
+                type: "CHECK_IN",
+                payload: { eventId: selectedEvent, userId: checkedUserId },
+              });
+              setSelectedParticipants((prev) =>
+                prev.map((p: any) =>
+                  p.userId === checkedUserId
+                    ? {
+                        ...p,
+                        checkedIn: true,
+                        checkInTime: new Date().toISOString(),
+                      }
+                    : p,
+                ),
+              );
             }
             const user = allUsers.find((u) => u.id === checkedUserId);
-            setScanResult(`Điểm danh thành công${user?.name ? ` cho ${user.name}` : ""}`);
+            setScanResult(
+              `Điểm danh thành công${user?.name ? ` cho ${user.name}` : ""}`,
+            );
             setQrInput("");
           } catch (err: any) {
             const backendMsg = err?.response?.data?.message;
-            const msg = backendMsg === 'Event not found'
-              ? 'Không tìm thấy sự kiện'
-              : backendMsg === 'QR code not found for this event'
-                ? 'Không tìm thấy mã QR này trong hệ thống'
-                : backendMsg || 'Điểm danh thất bại';
+            const msg =
+              backendMsg === "Event not found"
+                ? "Không tìm thấy sự kiện"
+                : backendMsg === "QR code not found for this event"
+                  ? "Không tìm thấy mã QR này trong hệ thống"
+                  : backendMsg || "Điểm danh thất bại";
             setScanResult(msg);
           }
         }, 100);
@@ -228,7 +248,7 @@ export function CheckInPanel() {
         { facingMode: "environment" },
         config,
         onScanSuccess,
-        (errorMessage) => {}
+        (errorMessage) => {},
       );
     } catch (err: any) {
       setIsScanning(false);
@@ -239,20 +259,35 @@ export function CheckInPanel() {
         } catch {}
         qrScannerRef.current = null;
       }
-      
+
       const errorName = err?.name || "";
       const errorMsg = err?.message || "";
-      
-      if (errorName === "NotAllowedError" || errorMsg.includes("Permission denied")) {
-        setScanResult("Quyền truy cập camera bị từ chối. Vui lòng cấp quyền trong cài đặt trình duyệt và tải lại trang.");
-      } else if (errorName === "NotFoundError" || errorMsg.includes("Requested device not found")) {
+
+      if (
+        errorName === "NotAllowedError" ||
+        errorMsg.includes("Permission denied")
+      ) {
+        setScanResult(
+          "Quyền truy cập camera bị từ chối. Vui lòng cấp quyền trong cài đặt trình duyệt và tải lại trang.",
+        );
+      } else if (
+        errorName === "NotFoundError" ||
+        errorMsg.includes("Requested device not found")
+      ) {
         setScanResult("Không tìm thấy camera. Vui lòng kiểm tra thiết bị.");
-      } else if (errorName === "NotReadableError" || errorMsg.includes("Could not start video source")) {
-        setScanResult("Camera đang được sử dụng bởi ứng dụng khác. Vui lòng đóng các ứng dụng khác và thử lại.");
+      } else if (
+        errorName === "NotReadableError" ||
+        errorMsg.includes("Could not start video source")
+      ) {
+        setScanResult(
+          "Camera đang được sử dụng bởi ứng dụng khác. Vui lòng đóng các ứng dụng khác và thử lại.",
+        );
       } else if (errorMsg.includes("Scanner is already scanning")) {
         setScanResult("Scanner đang chạy. Vui lòng đợi hoặc tải lại trang.");
       } else {
-        setScanResult(`Lỗi: ${errorMsg || err?.toString() || 'Không thể mở camera. Vui lòng thử lại hoặc tải lại trang.'}`);
+        setScanResult(
+          `Lỗi: ${errorMsg || err?.toString() || "Không thể mở camera. Vui lòng thử lại hoặc tải lại trang."}`,
+        );
       }
     }
   };
@@ -262,7 +297,8 @@ export function CheckInPanel() {
     if (qrScannerRef.current) {
       try {
         const state = await qrScannerRef.current.getState();
-        if (state === 2) { // SCANNING state
+        if (state === 2) {
+          // SCANNING state
           await qrScannerRef.current.stop();
         }
         await qrScannerRef.current.clear();
@@ -320,27 +356,42 @@ export function CheckInPanel() {
       const raw = qrInput.trim();
       const isJsonOrData = raw.startsWith("{") || raw.startsWith("data:");
       const payload: any = { event_id: selectedEvent };
-      if (isJsonOrData) payload.qr_data = raw; else payload.qr_code = raw;
+      if (isJsonOrData) payload.qr_data = raw;
+      else payload.qr_code = raw;
 
-      const res = await axios.post(`${BASE}/attendance/checkin`, payload, { headers });
+      const res = await axios.post(`${BASE}/attendance/checkin`, payload, {
+        headers,
+      });
       const participant = res.data?.participant ?? res.data;
       const checkedUserId = participant.user_id ?? participant.userId;
 
       if (checkedUserId) {
-        dispatch({ type: "CHECK_IN", payload: { eventId: selectedEvent, userId: checkedUserId } });
-        setSelectedParticipants(prev => prev.map((p: any) => p.userId === checkedUserId ? { ...p, checkedIn: true, checkInTime: new Date().toISOString() } : p));
+        dispatch({
+          type: "CHECK_IN",
+          payload: { eventId: selectedEvent, userId: checkedUserId },
+        });
+        setSelectedParticipants((prev) =>
+          prev.map((p: any) =>
+            p.userId === checkedUserId
+              ? { ...p, checkedIn: true, checkInTime: new Date().toISOString() }
+              : p,
+          ),
+        );
       }
 
       const user = allUsers.find((u) => u.id === checkedUserId);
-      setScanResult(`✅ Điểm danh thành công${user?.name ? ` cho ${user.name}` : ""}`);
+      setScanResult(
+        `✅ Điểm danh thành công${user?.name ? ` cho ${user.name}` : ""}`,
+      );
       setQrInput("");
     } catch (err: any) {
       const backendMsg = err?.response?.data?.message;
-      const msg = backendMsg === 'Event not found'
-        ? 'Không tìm thấy sự kiện'
-        : backendMsg === 'QR code not found for this event'
-          ? 'Không tìm thấy mã QR này trong hệ thống'
-          : backendMsg || 'Điểm danh thất bại';
+      const msg =
+        backendMsg === "Event not found"
+          ? "Không tìm thấy sự kiện"
+          : backendMsg === "QR code not found for this event"
+            ? "Không tìm thấy mã QR này trong hệ thống"
+            : backendMsg || "Điểm danh thất bại";
       setScanResult(msg);
     }
   };
@@ -370,7 +421,7 @@ export function CheckInPanel() {
   };
 
   return (
-  <div className="space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="text-center mb-8 sm:mb-12 relative">
         <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold flex items-center justify-center gap-2 sm:gap-3">
@@ -386,7 +437,7 @@ export function CheckInPanel() {
       {/* QR Scanner + Event Details */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-10">
         {/* QR Scanner Card */}
-  <div className="rounded-xl sm:rounded-2xl p-4 sm:p-6 lg:p-8 shadow-lg bg-white dark:bg-dark-bg-secondary border border-gray-200 dark:border-gray-700 animate-fade-in-up">
+        <div className="rounded-xl sm:rounded-2xl p-4 sm:p-6 lg:p-8 shadow-lg bg-white dark:bg-dark-bg-secondary border border-gray-200 dark:border-gray-700 animate-fade-in-up">
           <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6 flex items-center">
             <Scan className="h-6 w-6 mr-2 text-blue-700 animate-pulse" />
             Quét mã QR
@@ -407,7 +458,10 @@ export function CheckInPanel() {
                 {myCreatedEvents.map((event) => {
                   const status = getEventStatus(event);
                   return (
-                    <option key={event.id} value={event.id}>
+                    <option
+                      key={event.id}
+                      value={event.id}
+                    >
                       {event.title} - {status.text}
                     </option>
                   );
@@ -440,11 +494,14 @@ export function CheckInPanel() {
               {isScanning && (
                 <div className="mt-4 p-3 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                   <div className="relative">
-                    <div id={scannerDivId} className="w-full rounded-xl overflow-hidden" />
+                    <div
+                      id={scannerDivId}
+                      className="w-full rounded-xl overflow-hidden"
+                    />
                   </div>
                   <div className="mt-3 flex justify-end">
-                    <button 
-                      onClick={stopScanner} 
+                    <button
+                      onClick={stopScanner}
                       className="px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold transition-colors flex items-center gap-2"
                     >
                       <X className="h-4 w-4" />
@@ -472,7 +529,7 @@ export function CheckInPanel() {
 
         {/* Event Details Card */}
         {selectedEventData && (
-  <div className="rounded-xl sm:rounded-2xl p-4 sm:p-6 lg:p-8 shadow-lg bg-white dark:bg-dark-bg-secondary border border-gray-200 dark:border-gray-700 animate-fade-in-up hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+          <div className="rounded-xl sm:rounded-2xl p-4 sm:p-6 lg:p-8 shadow-lg bg-white dark:bg-dark-bg-secondary border border-gray-200 dark:border-gray-700 animate-fade-in-up hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
             <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">
               Chi tiết sự kiện
             </h3>
@@ -494,28 +551,24 @@ export function CheckInPanel() {
                   </span>
                   <p className="font-medium mt-1">
                     {new Date(selectedEventData.startTime).toLocaleDateString(
-                      "vi-VN"
+                      "vi-VN",
                     )}
                   </p>
                   <p className="text-gray-600 dark:text-gray-300">
                     {new Date(selectedEventData.startTime).toLocaleTimeString(
                       "vi-VN",
-                      { hour: "2-digit", minute: "2-digit" }
+                      { hour: "2-digit", minute: "2-digit" },
                     )}{" "}
                     -{" "}
                     {new Date(selectedEventData.endTime).toLocaleTimeString(
                       "vi-VN",
-                      { hour: "2-digit", minute: "2-digit" }
+                      { hour: "2-digit", minute: "2-digit" },
                     )}
                   </p>
                 </div>
                 <div>
-                  <span className="text-gray-500 dark:text-gray-400">
-                    Địa điểm:
-                  </span>
-                  <p className="font-medium mt-1">
-                    {selectedEventData.location}
-                  </p>
+                  <span className="text-gray-500 dark:text-gray-400">Địa điểm:</span>
+                  <p className="font-medium mt-1">{selectedEventData.location}</p>
                 </div>
               </div>
 
@@ -538,9 +591,7 @@ export function CheckInPanel() {
                       <CheckCircle className="h-5 w-5 mr-1" />
                     </div>
                     <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                      {
-                        selectedParticipants.filter((p: any) => p.checkedIn).length
-                      }
+                      {selectedParticipants.filter((p: any) => p.checkedIn).length}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                       Đã điểm danh
@@ -551,9 +602,7 @@ export function CheckInPanel() {
                       <Clock className="h-5 w-5 mr-1" />
                     </div>
                     <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                      {
-                        selectedParticipants.filter((p: any) => !p.checkedIn).length
-                      }
+                      {selectedParticipants.filter((p: any) => !p.checkedIn).length}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                       Chưa điểm danh
@@ -568,7 +617,7 @@ export function CheckInPanel() {
 
       {/* Participants List Card */}
       {selectedEventData && (
-  <div className="rounded-xl sm:rounded-2xl shadow-lg bg-gray-50 dark:bg-dark-bg-secondary border border-gray-200 dark:border-gray-700 animate-fade-in-up overflow-hidden mt-6 sm:mt-10">
+        <div className="rounded-xl sm:rounded-2xl shadow-lg bg-gray-50 dark:bg-dark-bg-secondary border border-gray-200 dark:border-gray-700 animate-fade-in-up overflow-hidden mt-6 sm:mt-10">
           <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-5 border-b border-gray-200 dark:border-gray-600 bg-white/50 dark:bg-gray-700/50">
             <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
               Danh sách người tham gia ({selectedParticipants.length})
@@ -586,19 +635,19 @@ export function CheckInPanel() {
                 >
                   <div className="flex items-center space-x-3 sm:space-x-4 min-w-0">
                     {user?.avatar_url ? (
-                      <img 
-                        src={getAvatarUrl(user.avatar_url)} 
+                      <img
+                        src={getAvatarUrl(user.avatar_url)}
                         alt={user.name}
                         className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover shadow-md flex-shrink-0"
                       />
                     ) : (
                       <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-500 dark:bg-blue-600 rounded-full flex items-center justify-center text-white font-bold shadow-md flex-shrink-0">
-                        {(user?.name?.[0] || 'U').toUpperCase()}
+                        {(user?.name?.[0] || "U").toUpperCase()}
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                        {user?.name || 'Người dùng'}
+                        {user?.name || "Người dùng"}
                       </p>
                       <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">
                         {user?.email || participant.userId}
@@ -609,9 +658,7 @@ export function CheckInPanel() {
                   <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 sm:space-x-4 flex-shrink-0">
                     <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
                       Đăng ký:{" "}
-                      {new Date(participant.joinedAt).toLocaleDateString(
-                        "vi-VN"
-                      )}
+                      {new Date(participant.joinedAt).toLocaleDateString("vi-VN")}
                     </span>
                     {participant.checkedIn ? (
                       <span className="flex items-center text-green-600 bg-green-50 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm whitespace-nowrap">

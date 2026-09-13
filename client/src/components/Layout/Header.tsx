@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { LogOut, Bell, Settings, Menu, Trash2, Clock } from "lucide-react";
 import axios from "axios";
 import { useApp } from "../../context/AppContext";
@@ -19,9 +19,10 @@ export function Header({ onMenuToggle }: HeaderProps) {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
 
-  const RAW_BASE = (import.meta.env.VITE_API_URL as string) || "http://localhost:5000";
+  const RAW_BASE =
+    (import.meta.env.VITE_API_URL as string) || "http://localhost:5000";
   const BASE = RAW_BASE.replace(/\/$/, "") + "/api";
-  
+
   const getToken = (): string | null => {
     const keys = ["token", "accessToken", "authToken", "currentUser", "user"];
     for (const key of keys) {
@@ -40,7 +41,7 @@ export function Header({ onMenuToggle }: HeaderProps) {
     return null;
   };
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       const token = getToken();
       const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
@@ -48,16 +49,15 @@ export function Header({ onMenuToggle }: HeaderProps) {
       const rows = res.data || [];
       setNotifications(rows);
       setUnreadCount(rows.filter((n: any) => !n.is_read).length);
-    } catch (err: any) {
-    }
-  };
+    } catch (err: any) {}
+  }, [BASE]);
 
   useEffect(() => {
     if (!currentUser) return;
     fetchNotifications();
     const id = window.setInterval(fetchNotifications, 30000);
     return () => window.clearInterval(id);
-  }, [currentUser?.id]);
+  }, [currentUser?.id, fetchNotifications]);
 
   const handleToggleNotif = async () => {
     setOpenNotif((v) => !v);
@@ -69,7 +69,9 @@ export function Header({ onMenuToggle }: HeaderProps) {
       const token = getToken();
       const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
       await axios.patch(`${BASE}/notifications/${id}/read`, {}, { headers });
-      setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, is_read: true } : n));
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)),
+      );
       setUnreadCount((c) => Math.max(0, c - 1));
     } catch {}
   };
@@ -90,10 +92,10 @@ export function Header({ onMenuToggle }: HeaderProps) {
     if (!notification.is_read) {
       await markAsRead(notification.id);
     }
-    
+
     // Đóng dropdown thông báo
     setOpenNotif(false);
-    
+
     // Navigate đến sự kiện liên quan nếu có
     if (notification.related_event_id) {
       navigate(`/events/${notification.related_event_id}`);
@@ -104,7 +106,7 @@ export function Header({ onMenuToggle }: HeaderProps) {
     if (!url) return "/default-avatar.png";
     if (url.startsWith("http")) return url;
     // Remove leading slashes and add exactly one between base and path
-    const cleanPath = url.replace(/^\/+/, '');
+    const cleanPath = url.replace(/^\/+/, "");
     return `${RAW_BASE}/${cleanPath}`;
   };
 
@@ -160,41 +162,60 @@ export function Header({ onMenuToggle }: HeaderProps) {
                   <Bell className="h-5 w-5" />
                   {unreadCount > 0 && (
                     <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center">
-                      {unreadCount > 99 ? '99+' : unreadCount}
+                      {unreadCount > 99 ? "99+" : unreadCount}
                     </span>
                   )}
                 </button>
                 {openNotif && (
                   <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-[360px] max-w-md max-h-[60vh] overflow-auto bg-white dark:bg-dark-bg-secondary border border-gray-200 dark:border-dark-border rounded-xl shadow-2xl z-50">
                     <div className="px-4 py-3 border-b border-gray-200 dark:border-dark-border flex items-center justify-between">
-                      <span className="font-semibold text-gray-900 dark:text-dark-text-primary">Thông báo</span>
-                      <button onClick={fetchNotifications} className="text-sm text-indigo-600 hover:text-indigo-500">Làm mới</button>
+                      <span className="font-semibold text-gray-900 dark:text-dark-text-primary">
+                        Thông báo
+                      </span>
+                      <button
+                        onClick={fetchNotifications}
+                        className="text-sm text-indigo-600 hover:text-indigo-500"
+                      >
+                        Làm mới
+                      </button>
                     </div>
                     {notifications.length === 0 ? (
-                      <div className="px-4 py-6 text-sm text-gray-500 dark:text-dark-text-tertiary">Không có thông báo</div>
+                      <div className="px-4 py-6 text-sm text-gray-500 dark:text-dark-text-tertiary">
+                        Không có thông báo
+                      </div>
                     ) : (
                       <ul className="divide-y divide-gray-100 dark:divide-dark-border">
                         {notifications.map((n) => (
-                          <li 
-                            key={n.id} 
+                          <li
+                            key={n.id}
                             onClick={() => handleNotificationClick(n)}
-                            className={`px-4 py-3 flex items-start gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-bg-tertiary transition-colors ${n.is_read ? '' : 'bg-indigo-50/50 dark:bg-indigo-900/20'}`}
+                            className={`px-4 py-3 flex items-start gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-bg-tertiary transition-colors ${n.is_read ? "" : "bg-indigo-50/50 dark:bg-indigo-900/20"}`}
                           >
                             <div className="mt-0.5">
-                              <div className={`w-2 h-2 rounded-full ${n.is_read ? 'bg-gray-300' : 'bg-indigo-500'}`}></div>
+                              <div
+                                className={`w-2 h-2 rounded-full ${n.is_read ? "bg-gray-300" : "bg-indigo-500"}`}
+                              ></div>
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-900 dark:text-dark-text-primary truncate">{n.title}</p>
-                              <p className="text-sm text-gray-600 dark:text-dark-text-secondary whitespace-pre-wrap break-words">{n.message}</p>
+                              <p className="text-sm font-medium text-gray-900 dark:text-dark-text-primary truncate">
+                                {n.title}
+                              </p>
+                              <p className="text-sm text-gray-600 dark:text-dark-text-secondary whitespace-pre-wrap break-words">
+                                {n.message}
+                              </p>
                               <div className="mt-1 flex items-center gap-1 text-xs text-gray-500 dark:text-dark-text-tertiary">
                                 <Clock className="w-3.5 h-3.5" />
-                                <span>{new Date(n.created_at || n.createdAt).toLocaleString('vi-VN')}</span>
+                                <span>
+                                  {new Date(
+                                    n.created_at || n.createdAt,
+                                  ).toLocaleString("vi-VN")}
+                                </span>
                               </div>
                             </div>
                             <div className="flex items-center ml-2">
-                              <button 
-                                onClick={(e) => deleteNotification(n.id, e)} 
-                                title="Xóa" 
+                              <button
+                                onClick={(e) => deleteNotification(n.id, e)}
+                                title="Xóa"
                                 className="p-1.5 rounded-full bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -210,9 +231,7 @@ export function Header({ onMenuToggle }: HeaderProps) {
 
               {/* User */}
               <div className="flex items-center space-x-2 sm:space-x-3">
-                <div
-                  className="flex items-center space-x-2 select-none"
-                >
+                <div className="flex items-center space-x-2 select-none">
                   <div className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-full ring-2 ring-indigo-400 dark:ring-indigo-500 shadow overflow-hidden">
                     <img
                       src={getAvatarUrl(currentUser?.avatar_url)}
@@ -256,60 +275,6 @@ export function Header({ onMenuToggle }: HeaderProps) {
           </div>
         </div>
       </header>
-
-      {/* MODAL ĐỔI MẬT KHẨU ===== */}
-      {/* {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-dark-bg-secondary rounded-xl p-6 w-[360px] shadow-xl transition-all">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-dark-text-primary flex items-center gap-2">
-              <Lock className="w-5 h-5 text-indigo-500" />
-              Đổi mật khẩu
-            </h3>
-
-            <div className="mt-4 space-y-3">
-              <input
-                type="password"
-                placeholder="Mật khẩu cũ"
-                value={oldPassword}
-                onChange={(e) => setOldPassword(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-dark-border bg-white dark:bg-dark-bg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-              />
-              <input
-                type="password"
-                placeholder="Mật khẩu mới"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-dark-border bg-white dark:bg-dark-bg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-              />
-              <input
-                type="password"
-                placeholder="Xác nhận mật khẩu mới"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-dark-border bg-white dark:bg-dark-bg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-              />
-
-              {error && <p className="text-red-500 text-sm">{error}</p>}
-              {success && <p className="text-green-500 text-sm">{success}</p>}
-            </div>
-
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                onClick={() => setShowModal(false)}
-                className="px-4 py-2 text-sm rounded-lg bg-gray-200 dark:bg-dark-bg-tertiary hover:bg-gray-300 dark:hover:bg-dark-border transition"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={handleChangePassword}
-                className="px-4 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition"
-              >
-                Lưu
-              </button>
-            </div>
-          </div>
-        </div>
-      )} */}
     </>
   );
 }

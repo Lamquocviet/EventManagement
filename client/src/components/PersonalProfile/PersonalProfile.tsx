@@ -52,14 +52,16 @@ export function PersonalProfile() {
   const [isLoading, setIsLoading] = useState(false);
 
   const [avatarPreview, setAvatarPreview] = useState(
-    currentUser?.avatar_url ? getAvatarUrl(currentUser.avatar_url) : "/default-avatar.png"
+    currentUser?.avatar_url
+      ? getAvatarUrl(currentUser.avatar_url)
+      : "/default-avatar.png",
   );
 
   function getAvatarUrl(url?: string) {
     if (!url) return "/default-avatar.png";
     if (url.startsWith("http")) return url;
     // Remove leading slashes and add exactly one between base and path
-    const cleanPath = url.replace(/^\/+/, '');
+    const cleanPath = url.replace(/^\/+/, "");
     return `${API_URL}/${cleanPath}`;
   }
 
@@ -141,6 +143,14 @@ export function PersonalProfile() {
     }
   }, [imageToCrop, croppedAreaPixels, state.token, dispatch]);
 
+  if (!currentUser) {
+    return (
+      <div className="text-center py-10 text-gray-500 dark:text-dark-text-secondary">
+        <p>Chưa có thông tin người dùng</p>
+      </div>
+    );
+  }
+
   const handleSaveInfo = async () => {
     setIsLoading(true);
     setMessage("");
@@ -182,7 +192,7 @@ export function PersonalProfile() {
           body: JSON.stringify({
             currentPassword: oldPassword,
             newPassword,
-            confirmPassword
+            confirmPassword,
           }),
         });
 
@@ -238,7 +248,9 @@ export function PersonalProfile() {
         {cropModalOpen && (
           <div className="fixed inset-0 bg-black/70 flex flex-col items-center justify-center z-50">
             <div className="relative bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-xl w-[90%] max-w-md">
-              <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Cắt ảnh đại diện</h3>
+              <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
+                Cắt ảnh đại diện
+              </h3>
 
               <div className="relative w-full h-64 bg-gray-200 dark:bg-gray-800 rounded-lg overflow-hidden">
                 <Cropper
@@ -289,7 +301,9 @@ export function PersonalProfile() {
         <div className="space-y-6 mb-6 relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Họ và tên</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Họ và tên
+              </label>
               <input
                 type="text"
                 value={name}
@@ -322,7 +336,9 @@ export function PersonalProfile() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Số điện thoại</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Số điện thoại
+              </label>
               <input
                 type="text"
                 value={phone}
@@ -371,12 +387,32 @@ export function PersonalProfile() {
 
           <div className="space-y-4 max-w-md mx-auto">
             {[
-              { label: "Mật khẩu cũ", value: oldPassword, setValue: setOldPassword, show: showOld, setShow: setShowOld },
-              { label: "Mật khẩu mới", value: newPassword, setValue: setNewPassword, show: showNew, setShow: setShowNew },
-              { label: "Xác nhận mật khẩu mới", value: confirmPassword, setValue: setConfirmPassword, show: showConfirm, setShow: setShowConfirm },
+              {
+                label: "Mật khẩu cũ",
+                value: oldPassword,
+                setValue: setOldPassword,
+                show: showOld,
+                setShow: setShowOld,
+              },
+              {
+                label: "Mật khẩu mới",
+                value: newPassword,
+                setValue: setNewPassword,
+                show: showNew,
+                setShow: setShowNew,
+              },
+              {
+                label: "Xác nhận mật khẩu mới",
+                value: confirmPassword,
+                setValue: setConfirmPassword,
+                show: showConfirm,
+                setShow: setShowConfirm,
+              },
             ].map((f, i) => (
               <div key={i}>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{f.label}</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  {f.label}
+                </label>
                 <div className="relative">
                   <input
                     type={f.show ? "text" : "password"}
@@ -396,7 +432,9 @@ export function PersonalProfile() {
             ))}
 
             {message && (
-              <p className={`text-sm text-center font-medium ${isSuccess ? "text-green-500" : "text-red-500"}`}>
+              <p
+                className={`text-sm text-center font-medium ${isSuccess ? "text-green-500" : "text-red-500"}`}
+              >
                 {message}
               </p>
             )}

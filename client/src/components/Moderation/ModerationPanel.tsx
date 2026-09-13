@@ -86,7 +86,7 @@ export function ModerationPanel() {
 
     fetchEvents();
     fetchUsers();
-  }, []);
+  }, [BASE]);
 
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");

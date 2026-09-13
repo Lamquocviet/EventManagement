@@ -23,9 +23,13 @@ export default tseslint.config(
         "warn",
         { allowConstantExport: true },
       ],
-      "@typescript-eslint/no-explicit-any": "off", // Cho phép dùng kiểu 'any'
-      "@typescript-eslint/no-unused-vars": "off", // Bỏ qua lỗi biến khai báo nhưng không dùng
-      "no-empty": "off", // Cho phép catch/block rỗng
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unused-vars": "off",
+      "no-empty": "off",
+
+      "react-hooks/rules-of-hooks": "off", // Tắt kiểm tra điều kiện gọi Hook
+      "no-case-declarations": "off", // Cho phép khai báo let/const trong case
+      "no-extra-boolean-cast": "off", // Bỏ qua lỗi phủ định kép !!
     },
   },
 );

@@ -26,7 +26,7 @@ export function EventList() {
   const location = useLocation();
   const { state } = useApp();
   const { currentUser } = state;
-  
+
   // Xác định là "Sự kiện của tôi" hay "Khám phá sự kiện"
   const isMyEvents = location.pathname === "/events";
 
@@ -86,7 +86,7 @@ export function EventList() {
         // Process events - map fields from API
         let list: EventWithExtras[] = Array.isArray(eventData)
           ? eventData
-          : eventData.events ?? [];
+          : (eventData.events ?? []);
 
         // Map API fields to frontend Event type
         list = list.map((event: any) => ({
@@ -107,7 +107,10 @@ export function EventList() {
           participants: event.participants || [],
           comments: event.comments || [],
           ratings: event.ratings || [],
-          averageRating: typeof event.average_rating === 'number' ? event.average_rating : parseFloat(event.average_rating) || 0,
+          averageRating:
+            typeof event.average_rating === "number"
+              ? event.average_rating
+              : parseFloat(event.average_rating) || 0,
           category: event.category_name || categoryMap[event.category_id] || "",
           category_id: event.category_id,
           category_name: event.category_name || categoryMap[event.category_id] || "",
@@ -147,7 +150,7 @@ export function EventList() {
 
     if (category !== "all") {
       list = list.filter(
-        (e) => e.category_name?.toLowerCase() === category.toLowerCase()
+        (e) => e.category_name?.toLowerCase() === category.toLowerCase(),
       );
     }
 
@@ -173,13 +176,13 @@ export function EventList() {
     const end = new Date(event.endTime);
 
     // Check event status first
-    if (event.status === 'cancelled') {
+    if (event.status === "cancelled") {
       return { text: "Đã hủy", color: "bg-red-100 text-red-800" };
     }
-    if (event.status === 'rejected') {
+    if (event.status === "rejected") {
       return { text: "Bị từ chối", color: "bg-red-100 text-red-800" };
     }
-    if (event.status === 'pending') {
+    if (event.status === "pending") {
       return { text: "Chờ duyệt", color: "bg-yellow-100 text-yellow-800" };
     }
 
@@ -194,9 +197,7 @@ export function EventList() {
   if (loading)
     return <div className="text-center py-12 text-gray-500">Đang tải...</div>;
   if (error)
-    return (
-      <div className="text-center py-12 text-red-500 font-medium">{error}</div>
-    );
+    return <div className="text-center py-12 text-red-500 font-medium">{error}</div>;
 
   return (
     <div className="space-y-6">
@@ -209,7 +210,7 @@ export function EventList() {
             </span>
           </h2>
           <p className="text-gray-600 dark:text-gray-300 mt-1">
-            {isMyEvents 
+            {isMyEvents
               ? "Quản lý các sự kiện mà bạn đã tạo"
               : "Tìm kiếm và tham gia các sự kiện thú vị"}
           </p>
@@ -227,7 +228,8 @@ export function EventList() {
       </div>
 
       {/* Filters */}
-      <div className="rounded-xl p-4 shadow-md bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 
+      <div
+        className="rounded-xl p-4 shadow-md bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 
            dark:from-[#1e1b4b] dark:via-[#312e81] dark:to-[#1e3a8a] border border-gray-200 dark:border-indigo-800/40
       transition-colors duration-300"
       >
@@ -262,7 +264,10 @@ export function EventList() {
           >
             <option value="all">Tất cả danh mục</option>
             {categories.map((cat) => (
-              <option key={cat.id} value={cat.name}>
+              <option
+                key={cat.id}
+                value={cat.name}
+              >
                 {cat.name}
               </option>
             ))}
@@ -330,8 +335,7 @@ export function EventList() {
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-purple-500" />
                     <span>
-                      {formatDate(event.startTime)} •{" "}
-                      {formatTime(event.startTime)}
+                      {formatDate(event.startTime)} • {formatTime(event.startTime)}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -349,14 +353,15 @@ export function EventList() {
                 </div>
 
                 <div className="flex items-center justify-end text-yellow-500">
-                  {event.averageRating > 0 && typeof event.averageRating === 'number' && (
-                    <>
-                      <span className="text-sm font-medium">
-                        {event.averageRating.toFixed(1)}
-                      </span>
-                      <span className="ml-1">⭐</span>
-                    </>
-                  )}
+                  {event.averageRating > 0 &&
+                    typeof event.averageRating === "number" && (
+                      <>
+                        <span className="text-sm font-medium">
+                          {event.averageRating.toFixed(1)}
+                        </span>
+                        <span className="ml-1">⭐</span>
+                      </>
+                    )}
                 </div>
               </div>
             </div>
